@@ -24,7 +24,7 @@ def mock_jira_changelogs():
 def jira_functions_instance(mocker):
     # Basic parameters for JiraFunctions initialization
     mock_dt = mocker.patch('TAT_audit.utils.jira_requests.dt') # Mock datetime within the module
-    
+
     # Setup specific return values if needed by tests that use this fixture directly
     # For now, assume default MagicMock behavior is fine for dt.datetime.strptime
 
@@ -33,7 +33,7 @@ def jira_functions_instance(mocker):
         jira_token="fake_token",
         assay_types=["CEN", "TSO500"],
         cancelled_statuses=["Cancelled"],
-        audit_start_obj=MagicMock(), 
+        audit_start_obj=MagicMock(),
         audit_end_obj=MagicMock(),
         open_statuses=["Open"],
         five_days_before_start="2023-01-01",
@@ -45,7 +45,7 @@ class TestJiraFunctions:
     def test_init(self, mocker):
         """Test JiraFunctions initialization."""
         mock_auth_constructor = mocker.patch('TAT_audit.utils.jira_requests.HTTPBasicAuth')
-        
+
         jira_email = "user@example.com"
         jira_token = "apitoken"
         assay_types = ["MYE"]
@@ -74,7 +74,7 @@ class TestJiraFunctions:
         assert jf.open_statuses == open_statuses
         assert jf.five_days_before_start == five_days_before_start_str
         assert jf.five_days_after == five_days_after_str
-        
+
     @patch('TAT_audit.utils.jira_requests.requests.request')
     def test_query_jira_tickets_in_queue_single_page(self, mock_request, jira_functions_instance, mock_jira_tickets):
         """Test querying Jira tickets when all results fit in a single page."""
@@ -82,17 +82,17 @@ class TestJiraFunctions:
         mock_response.ok = True
         # Ensure 'values' is part of the structure even if empty for the stop condition
         mock_response.text = json.dumps({"values": mock_jira_tickets["single_page_response"], "isLast": True, "size": 50, "start": 0})
-        
+
         # Second call to simulate end of pagination
         mock_response_empty = MagicMock()
         mock_response_empty.ok = True
         mock_response_empty.text = json.dumps({"values": [], "isLast": True, "size": 0, "start": 50})
 
         mock_request.side_effect = [mock_response, mock_response_empty]
-        
+
         queue_id = 35
         result = jira_functions_instance.query_jira_tickets_in_queue(queue_id)
-        
+
         expected_url = f"https://cuhbioinformatics.atlassian.net/rest/servicedeskapi/servicedesk/4/queue/{queue_id}/issue"
         calls = [
             call("GET", url=f"{expected_url}?start=0", headers=jira_functions_instance.headers, auth=jira_functions_instance.auth),
@@ -107,25 +107,25 @@ class TestJiraFunctions:
         mock_response_page1 = MagicMock()
         mock_response_page1.ok = True
         mock_response_page1.text = json.dumps({"values": mock_jira_tickets["multi_page_response_p1"], "isLast": False, "size": 1, "start":0}) # Assuming page size of 1 for test simplicity
-        
+
         mock_response_page2 = MagicMock()
         mock_response_page2.ok = True
         mock_response_page2.text = json.dumps({"values": mock_jira_tickets["multi_page_response_p2"], "isLast": True, "size": 1, "start":1})
-        
+
         mock_response_empty = MagicMock() # To stop pagination
         mock_response_empty.ok = True
         mock_response_empty.text = json.dumps({"values": [], "isLast":True, "size":0, "start":2})
-        
+
         mock_request.side_effect = [mock_response_page1, mock_response_page2, mock_response_empty]
-        
+
         queue_id = 35
         result = jira_functions_instance.query_jira_tickets_in_queue(queue_id)
-        
+
         expected_url = f"https://cuhbioinformatics.atlassian.net/rest/servicedeskapi/servicedesk/4/queue/{queue_id}/issue"
         # Assuming default page_size is 50, but our mock data implies page_size=1 for simplicity of mock data.
         # The code uses a hardcoded page_size of 50. Let's adjust the test to reflect that.
         # For this test, we will assume the mock data fills up to page_size for simplicity of data.
-        
+
         # Re-evaluate mock_request.side_effect and expected calls if page_size 50 is strictly tested.
         # For now, this test structure assumes the logic of fetching until 'values' is empty works.
         # If we wanted to test the start=0, start=50, etc. precisely, the mock_jira_tickets needs 50 items per page.
@@ -139,17 +139,17 @@ class TestJiraFunctions:
         # Page 1: mock_jira_tickets["multi_page_response_p1"] (assume it has 50 items)
         # Page 2: mock_jira_tickets["multi_page_response_p2"] (assume it has <50 items)
         # Page 3: empty
-        
+
         # Simplified mock for pagination with default page size 50:
         mock_response_page1_50 = MagicMock(); mock_response_page1_50.ok=True
         mock_response_page1_50.text = json.dumps({"values": mock_jira_tickets["multi_page_response_p1"]}) # p1 is first page of 50
-        
+
         mock_response_page2_50 = MagicMock(); mock_response_page2_50.ok=True
         mock_response_page2_50.text = json.dumps({"values": mock_jira_tickets["multi_page_response_p2"]}) # p2 is second page, could be < 50
-        
+
         mock_response_empty_50 = MagicMock(); mock_response_empty_50.ok=True
         mock_response_empty_50.text = json.dumps({"values": []}) # Empty to stop
-        
+
         mock_request.side_effect = [mock_response_page1_50, mock_response_page2_50, mock_response_empty_50]
 
         result = jira_functions_instance.query_jira_tickets_in_queue(queue_id)
@@ -163,10 +163,10 @@ class TestJiraFunctions:
         mock_response = MagicMock()
         mock_response.ok = False
         mock_request.return_value = mock_response
-        
+
         with pytest.raises(SystemExit) as excinfo:
             jira_functions_instance.query_jira_tickets_in_queue(35)
-        
+
         assert excinfo.value.code == 1
         mock_request.assert_called_once()
 
@@ -177,10 +177,10 @@ class TestJiraFunctions:
         mock_response.ok = True
         mock_response.text = json.dumps({"values": mock_jira_changelogs["changelog_response"]})
         mock_request.return_value = mock_response
-        
+
         ticket_id = "21865"
         result = jira_functions_instance.get_ticket_transition_times(ticket_id)
-        
+
         expected_url = f"https://cuhbioinformatics.atlassian.net/rest/api/3/issue/{ticket_id}/changelog"
         mock_request.assert_called_once_with(
             "GET",
@@ -199,7 +199,7 @@ class TestJiraFunctions:
             {"created": "2023-01-01T10:00:00.000+0000", "items": [{"field": "summary", "toString": "New Summary"}]}
         ]}) # No 'status' field in items
         mock_request.return_value = mock_response
-        
+
         ticket_id = "123"
         result = jira_functions_instance.get_ticket_transition_times(ticket_id)
         assert result == {} # Expect an empty dict
@@ -209,25 +209,25 @@ class TestJiraFunctions:
         # Mock datetime.strptime within jira_requests.py for consistent parsing
         # The jira_functions_instance fixture already mocks dt at the module level,
         # so dt.datetime.strptime will be a MagicMock. We need to configure its return value.
-        
+
         # Prepare side_effect for strptime based on "created" fields in mock_jira_tickets
         # For "single_page_response"[0]: "2024-01-30T16:52:18.000+0000"
         # For "multi_page_response_p1"[0]: "2024-01-30T16:49:38.000+0000"
         # For "multi_page_response_p2"[0]: "2024-01-22T10:00:00.000+0000"
-        
+
         # We need to ensure that the mock for strptime is correctly accessed via the mocked 'dt' module
         # in jira_functions_instance.
         # The instance's five_days_before_start and five_days_after are strings like "YYYY-MM-DD"
         # The comparison logic in create_jira_info_dict uses dt.datetime.strptime for these too.
-        
+
         mock_datetime_strptime = jira_functions_instance.audit_start_obj.strptime # Reusing one of the mocked objects for strptime
-        
+
         # Define specific return values for each call to strptime
         # This needs to match the order of calls in the function for the given input
         # 1. five_days_before_start
         # 2. five_days_after
         # 3. Then for each ticket's 'created' date
-        
+
         # Let's simplify: assume five_days_before_start and five_days_after allow all tickets.
         # The fixture sets these to "2023-01-01" and "2023-01-31".
         # Our mock tickets are from 2024, so they would be filtered out.
@@ -236,7 +236,7 @@ class TestJiraFunctions:
         # Let's adjust the instance's date range for this test to include 2024.
         jira_functions_instance.five_days_before_start = "2024-01-01"
         jira_functions_instance.five_days_after = "2024-02-28"
-        
+
         # Mocking strptime calls for the date range check
         # And then for each ticket's 'created' field.
         def strptime_side_effect(date_string, date_format):
@@ -250,17 +250,17 @@ class TestJiraFunctions:
 
         mock_dt_module = mocker.patch('TAT_audit.utils.jira_requests.dt')
         mock_dt_module.datetime.strptime.side_effect = strptime_side_effect
-        
+
         # Input combines all mock tickets
         api_response_input = (
-            mock_jira_tickets["single_page_response"] + 
+            mock_jira_tickets["single_page_response"] +
             mock_jira_tickets["multi_page_response_p1"] +
             mock_jira_tickets["multi_page_response_p2"]
         )
-        
+
         expected_dict = {
             "240130_A01303_0329_BH2HWHDRX5": {
-                'ticket_key': 'EBH-2377', 'ticket_id': '21865', 
+                'ticket_key': 'EBH-2377', 'ticket_id': '21865',
                 'jira_status': 'All samples released', 'assay_type': 'CEN',
                 'date_jira_ticket_created': dt.datetime(2024, 1, 30, 16, 52, 18)
             },
@@ -279,7 +279,7 @@ class TestJiraFunctions:
 
 
         result = jira_functions_instance.create_jira_info_dict(api_response_input)
-        
+
         assert result == expected_dict_filtered
         # Verify strptime calls (simplified check for count)
         # 2 for date range, 3 for tickets = 5 calls that match '%Y-%m-%d %H:%M:%S' or '%Y-%m-%d'
@@ -313,11 +313,11 @@ class TestJiraFunctions:
             mock_jira_tickets["multi_page_response_p1"] + # Created 2024-01-30T16:49:38 (IN, MYE - filtered by assay)
             mock_jira_tickets["multi_page_response_p2"]   # Created 2024-01-22T10:00:00 (OUT by date)
         )
-        
+
         # Only "single_page_response"[0] (CEN) should be included
         expected_dict = {
             "240130_A01303_0329_BH2HWHDRX5": {
-                'ticket_key': 'EBH-2377', 'ticket_id': '21865', 
+                'ticket_key': 'EBH-2377', 'ticket_id': '21865',
                 'jira_status': 'All samples released', 'assay_type': 'CEN',
                 'date_jira_ticket_created': dt.datetime(2024, 1, 30, 16, 52, 18)
             }
@@ -356,7 +356,7 @@ class TestJiraFunctions:
             }
         }
         api_response_input = [ticket_no_assay, ticket_empty_assay_list]
-        
+
         expected_dict = {
             "RUN_NO_ASSAY_FIELD": {
                 'ticket_key': 'NOASSAY-1', 'ticket_id': '12345',
@@ -395,7 +395,7 @@ class TestJiraFunctions:
         key, typo_info = jira_functions_instance.get_closest_match_in_dict("RUN_ONETYPO", run_dict) # Ticket name has typo
         assert key == "RUN_ONE_TYPO"
         assert typo_info == {'assay_type': 'TSO500', 'run_name': 'RUN_ONE_TYPO', 'jira_ticket_name': 'RUN_ONETYPO'}
-        
+
         # Scenario 3: Two typos
         mock_levenshtein_distance.side_effect = [3, 2, 3, 3] # distance for RUN_ONE_TYPO is 2 (simulate it's the best match)
         key, typo_info = jira_functions_instance.get_closest_match_in_dict("RUN_TWOTYPS", run_dict)
@@ -407,7 +407,7 @@ class TestJiraFunctions:
         key, typo_info = jira_functions_instance.get_closest_match_in_dict("COMPLETELY_DIFFERENT_RUN", run_dict)
         assert key is None
         assert typo_info is None
-        
+
         # Scenario 5: Empty run_dict
         mock_levenshtein_distance.reset_mock()
         key, typo_info = jira_functions_instance.get_closest_match_in_dict("ANY_RUN", {})
@@ -437,7 +437,7 @@ class TestJiraFunctions:
             "RUN001_CEN_MATCH": {"assay_type": "CEN"}, # Will be matched
             "RUN003_TSO_ORPHAN": {"assay_type": "TSO500"} # No matching Jira ticket
         }
-        
+
         # Jira tickets:
         # Ticket 1: Matches RUN001_CEN_MATCH, within audit period, "All samples released"
         # Ticket 2: No 002 project, CEN, within audit period, "All samples released" (becomes runs_no_002_proj)
@@ -448,8 +448,8 @@ class TestJiraFunctions:
         # Ticket 7: Matches RUN001_CEN_MATCH (again, to test it updates existing), "Cancelled"
         jira_run_dict_input = {
             "JIRA_RUN001_CEN": { # Matches RUN001_CEN_MATCH
-                'ticket_key': 'KEY-1', 'ticket_id': 'ID-1', 'assay_type': 'CEN', 
-                'jira_status': 'All samples released', 
+                'ticket_key': 'KEY-1', 'ticket_id': 'ID-1', 'assay_type': 'CEN',
+                'jira_status': 'All samples released',
                 'date_jira_ticket_created': dt.datetime(2024, 1, 15)
             },
             "JIRA_RUN002_CEN_NO_PROJ": { # No 002 project
@@ -465,7 +465,7 @@ class TestJiraFunctions:
             "JIRA_RUN004_CEN_EARLY": { # Filtered by date
                 'ticket_key': 'KEY-4', 'ticket_id': 'ID-4', 'assay_type': 'CEN',
                 'jira_status': 'All samples released',
-                'date_jira_ticket_created': dt.datetime(2024, 1, 1) 
+                'date_jira_ticket_created': dt.datetime(2024, 1, 1)
             },
             "JIRA_RUN005_TSO_CANCELLED": { # Cancelled, no 002
                 'ticket_key': 'KEY-5', 'ticket_id': 'ID-5', 'assay_type': 'TSO500',
@@ -490,10 +490,10 @@ class TestJiraFunctions:
             if ticket_name == "JIRA_RUN007_CEN_CANCEL_MATCH": return "RUN001_CEN_MATCH", {"typo_info": "some_typo"} # Simulate a typo identified
             return None, None # No match for others
         mock_get_closest_match.side_effect = closest_match_side_effect
-        
+
         # Mock behavior of get_ticket_transition_times (for JIRA_RUN002_CEN_NO_PROJ)
         mock_get_transitions.return_value = {'All samples released': '2024-01-16 12:00:00'}
-        
+
         # Mock dt.datetime.strptime for the 'All samples released' time string
         mock_strptime_transitions = mocker.patch('TAT_audit.utils.jira_requests.dt.datetime.strptime')
         mock_strptime_transitions.return_value = dt.datetime(2024,1,16,12,0,0)
@@ -501,9 +501,9 @@ class TestJiraFunctions:
 
         expected_run_dict_after = {
             "RUN001_CEN_MATCH": { # Updated by JIRA_RUN001_CEN, then by JIRA_RUN007_CEN_CANCEL_MATCH
-                "assay_type": "CEN", 
+                "assay_type": "CEN",
                 "jira_status": "Cancelled", # Final status from JIRA_RUN007
-                "ticket_key": "KEY-7", 
+                "ticket_key": "KEY-7",
                 "ticket_id": "ID-7"
             },
             "RUN003_TSO_ORPHAN": {"assay_type": "TSO500"} # Unchanged
@@ -541,7 +541,7 @@ class TestJiraFunctions:
         for item in expected_cancelled_list:
             assert item in res_cancelled
         assert res_open == expected_open_runs_list
-        
+
         # Check that get_ticket_transition_times was called for JIRA_RUN002_CEN_NO_PROJ
         mock_get_transitions.assert_called_once_with('ID-2')
         # Check strptime for transition time
@@ -556,28 +556,28 @@ class TestJiraFunctions:
             "RUN002_NO_TICKET_ID": {},
             "RUN003_HAS_TICKET_ID_RESOLVED": {"ticket_id": "ID_003", "jira_status": "All samples released"}
         }
-        
+
         # Mock return values for get_ticket_transition_times
         transitions1 = {"Open": "2023-01-01 10:00:00", "In Progress": "2023-01-01 11:00:00"}
         transitions3 = {"Open": "2023-01-02 09:00:00", "All samples released": "2023-01-02 15:00:00"}
         mock_get_transitions.side_effect = [transitions1, transitions3]
-        
+
         expected_run_dict = {
             "RUN001_HAS_TICKET_ID": {
-                "ticket_id": "ID_001", 
+                "ticket_id": "ID_001",
                 "change_log": transitions1
             },
             "RUN002_NO_TICKET_ID": {}, # Unchanged
             "RUN003_HAS_TICKET_ID_RESOLVED": {
-                "ticket_id": "ID_003", 
+                "ticket_id": "ID_003",
                 "jira_status": "All samples released",
                 "change_log": transitions3,
                 "jira_resolved": "2023-01-02 15:00:00" # Added because "All samples released" is in changelog
             }
         }
-        
+
         result_dict = jira_functions_instance.add_transition_times(run_dict_input)
-        
+
         assert result_dict == expected_run_dict
         calls_get_transitions = [call("ID_001"), call("ID_003")]
         mock_get_transitions.assert_has_calls(calls_get_transitions)

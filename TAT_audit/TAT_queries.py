@@ -13,10 +13,10 @@ from dateutil.relativedelta import relativedelta
 from jinja2 import Environment, FileSystemLoader
 from pathlib import Path
 
-from utils.dx_requests import DXFunctions
-from utils.jira_requests import JiraFunctions
-from utils.plotting import PlottingFunctions
-from utils.utils import GeneralFunctions
+from TAT_audit.utils.dx_requests import DXFunctions
+from TAT_audit.utils.jira_requests import JiraFunctions
+from TAT_audit.utils.plotting import PlottingFunctions
+from TAT_audit.utils.utils import GeneralFunctions
 
 
 warnings.filterwarnings("ignore")

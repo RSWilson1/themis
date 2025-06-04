@@ -68,7 +68,7 @@ class GeneralFunctions():
                 if not value:
                     run_dict[run][key] = None
 
-            return run_dict
+        return run_dict
 
     def create_run_df(self, run_dict):
         """
@@ -85,21 +85,25 @@ class GeneralFunctions():
             dataframe with a row for each run
         """
         # Convert dict to df with run names as column
-        run_df = pd.DataFrame(
-            run_dict.values()
-        ).assign(run_name=run_dict.keys())
+        if not run_dict:
+            # Explicitly create an empty DataFrame with 'run_name' column if run_dict is empty
+            # This ensures the structure before the .empty check is consistent.
+            run_df = pd.DataFrame(columns=['run_name'])
+        else:
+            run_df = pd.DataFrame(run_dict.values()).assign(run_name=run_dict.keys())
 
-        # Check dataframe is not empty, if it is exit
-        if run_df.empty:
-            logger.error("No runs were found within the audit period")
-            sys.exit(1)
-
-        # Subset to only columns we want
-        run_df = run_df[[
+        # Ensure all expected columns are present before subsetting, handling cases where they might be missing
+        expected_cols = [
             'assay_type', 'run_name', 'upload_time', 'first_job',
             'processing_finished', 'jira_status', 'jira_resolved',
             'change_log', 'ticket_key'
-        ]]
+        ]
+        for col in expected_cols:
+            if col not in run_df.columns:
+                run_df[col] = pd.NA # Use pd.NA for consistency with pandas, or None
+
+        # Subset to only the expected columns
+        run_df = run_df[expected_cols]
 
         # Convert cols to pandas datetime type
         cols_to_convert = [
@@ -456,8 +460,8 @@ class GeneralFunctions():
         # unless it's a cancelled run
         manual_review_dict['first_job_before_log'] = list(
             assay_df.loc[
-                assay_df['upload_to_first_job'] < 0
-                & ~assay_df['jira_status'].isin(cancelled_or_open_statuses)
+                (assay_df['upload_to_first_job'] < 0)
+                & (~assay_df['jira_status'].isin(cancelled_or_open_statuses))
             ]['run_name']
         )
 
@@ -472,12 +476,12 @@ class GeneralFunctions():
 
         # If no final job was found flag
         # unless it's a cancelled run
-        manual_review_dict['no_first_job_found'] = list(
-            assay_df.loc[
-                (assay_df['first_job'].isna())
-                & ~assay_df['jira_status'].isin(cancelled_or_open_statuses)
-            ]['run_name']
-        )
+        subset_df_no_first_job = assay_df.loc[
+            (assay_df['first_job'].isna())
+            & ~assay_df['jira_status'].isin(cancelled_or_open_statuses)
+        ]
+        # print(f"DEBUG: Subset for 'no_first_job_found':\n{subset_df_no_first_job[['run_name', 'first_job', 'jira_status']]}")
+        manual_review_dict['no_first_job_found'] = list(subset_df_no_first_job['run_name'])
 
         # If no final job was found flag unless it's a cancelled run
         manual_review_dict['no_final_job_found'] = list(
@@ -554,7 +558,10 @@ class GeneralFunctions():
             all_assays_df with cancelled runs added as rows
         """
         # Append the list of dicts as new rows
-        all_assays_df = all_assays_df.append(cancelled_runs, ignore_index=True)
+        # Convert cancelled_runs list of dicts to DataFrame before concat
+        if cancelled_runs: # Ensure cancelled_runs is not empty
+            cancelled_df = pd.DataFrame(cancelled_runs)
+            all_assays_df = pd.concat([all_assays_df, cancelled_df], ignore_index=True)
 
         # Remove duplicates if a failed run is still named as a '002' project
         # otherwise both the failed 002 project and failed ticket would be
