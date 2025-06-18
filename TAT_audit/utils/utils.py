@@ -2,7 +2,7 @@ import datetime as dt
 import logging
 import numpy as np
 import pandas as pd
-import sys
+# import sys # sys is no longer used directly in the modified create_run_df
 
 from collections import defaultdict
 from pathlib import Path
@@ -84,34 +84,28 @@ class GeneralFunctions():
         run_df : pd.DataFrame
             dataframe with a row for each run
         """
-        # Convert dict to df with run names as column
         if not run_dict:
-            # Explicitly create an empty DataFrame with 'run_name' column if run_dict is empty
-            # This ensures the structure before the .empty check is consistent.
-            run_df = pd.DataFrame(columns=['run_name'])
-        else:
-            run_df = pd.DataFrame(run_dict.values()).assign(run_name=run_dict.keys())
+            expected_cols = [ # Define all columns expected in the DataFrame
+                'assay_type', 'run_name', 'upload_time', 'first_job',
+                'processing_finished', 'jira_status', 'jira_resolved',
+                'change_log', 'ticket_key'
+            ]
+            return pd.DataFrame(columns=expected_cols)
 
-        # Ensure all expected columns are present before subsetting, handling cases where they might be missing
-        expected_cols = [
-            'assay_type', 'run_name', 'upload_time', 'first_job',
-            'processing_finished', 'jira_status', 'jira_resolved',
-            'change_log', 'ticket_key'
-        ]
-        for col in expected_cols:
-            if col not in run_df.columns:
-                run_df[col] = pd.NA # Use pd.NA for consistency with pandas, or None
+        # If run_dict is not empty, proceed with normal DataFrame creation:
+        run_df = pd.DataFrame(run_dict.values()).assign(run_name=run_dict.keys())
 
-        # Subset to only the expected columns
-        run_df = run_df[expected_cols]
-
-        # Convert cols to pandas datetime type
+        # Ensure datetime conversion logic remains and handles potential missing columns:
         cols_to_convert = [
             'upload_time', 'first_job', 'processing_finished', 'jira_resolved'
         ]
-        run_df[cols_to_convert] = run_df[cols_to_convert].apply(
-            pd.to_datetime, format='%Y-%m-%d %H:%M:%S'
-        )
+        for col in cols_to_convert:
+            if col in run_df.columns:
+                run_df[col] = pd.to_datetime(run_df[col], format='%Y-%m-%d %H:%M:%S', errors='coerce')
+            else:
+                # This case should ideally not happen if add_in_empty_keys ran prior to create_run_df.
+                # If it can, creating an empty datetime series for the column.
+                run_df[col] = pd.Series(pd.NaT, index=run_df.index, dtype='datetime64[ns]')
 
         return run_df
 

@@ -40,6 +40,10 @@ logging.basicConfig(
 # Set up logger
 logger = logging.getLogger("main log")
 
+# Module-level aliases for datetime classes for easier mocking
+_dt_date = dt.date
+_dt_datetime = dt.datetime
+
 
 class Arguments():
     """
@@ -173,15 +177,18 @@ class Arguments():
         # containers
         # (single quotes are needed bc trying to export the .env file
         # in a non-Docker environment doesn't work otherwise)
-        assay_types = literal_eval(assay_types.strip("'"))
-        cancelled_statuses = literal_eval(cancelled_statuses.strip("'"))
-        open_statuses = literal_eval(open_statuses.strip("'"))
-        last_jobs = literal_eval(last_jobs.strip("'"))
+        # Ensure variables are not None before stripping and evaluating
+        assay_types_eval = literal_eval(assay_types.strip("'")) if assay_types else []
+        cancelled_statuses_eval = literal_eval(cancelled_statuses.strip("'")) if cancelled_statuses else []
+        open_statuses_eval = literal_eval(open_statuses.strip("'")) if open_statuses else []
+        last_jobs_eval = literal_eval(last_jobs.strip("'")) if last_jobs else {}
+        # Process tat_standard ensuring it's not None before int conversion
+        processed_tat_standard = int(tat_standard) if tat_standard is not None else None
 
         return (
             dx_token, jira_email, jira_token, staging_proj_id, default_months,
-            int(tat_standard), assay_types, cancelled_statuses,
-            open_statuses, last_jobs
+            processed_tat_standard, assay_types_eval, cancelled_statuses_eval,
+            open_statuses_eval, last_jobs_eval
         )
 
     def determine_start_and_end_date(self):
@@ -202,7 +209,7 @@ class Arguments():
             later
         """
         # Work out default dates for audit if none supplied (today - X months)
-        today_date = dt.date.today()
+        today_date = _dt_date.today() # Use aliased class
         today_str = today_date.strftime('%Y-%m-%d')
         default_begin_date = today_date + relativedelta(
             months=-int(self.default_months)
@@ -228,10 +235,10 @@ class Arguments():
 
         # Get the dates as objects so that they can be converted to
         # different str formats later
-        audit_begin_date_obj = dt.datetime.strptime(
+        audit_begin_date_obj = _dt_datetime.strptime( # Use aliased class
             audit_begin_date, '%Y-%m-%d'
         )
-        audit_end_date_obj = dt.datetime.strptime(audit_end_date, '%Y-%m-%d')
+        audit_end_date_obj = _dt_datetime.strptime(audit_end_date, '%Y-%m-%d') # Use aliased class
         # Get day 5 days before and after start date in date obj and string
         # for finding projects when querying DNAnexus
         five_days_before_start = audit_begin_date_obj + relativedelta(days=-5)
@@ -412,7 +419,7 @@ def main():
     # Render all the things to go in the template
     content = template.render(
         period_audited=period_audited,
-        datetime_now=dt.datetime.now().strftime("%Y-%m-%d %H:%M"),
+        datetime_now=_dt_datetime.now().strftime("%Y-%m-%d %H:%M"), # Use aliased class
         no_of_002_runs=no_of_002_runs,
         figures_by_assay=fig_info_dict,
         open_runs=open_runs_list,

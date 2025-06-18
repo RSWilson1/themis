@@ -107,7 +107,8 @@ class PlottingFunctions():
                         name='Pipeline end to all samples released',
                         marker={'color': '#00CC96'},
                         customdata=week_df['run_name'],
-                        text=round(week_df['upload_to_release'], 1),
+                        # Safely round text values, use empty string for None/NaN
+                        text=week_df['upload_to_release'].apply(lambda x: round(x, 1) if pd.notna(x) else ''),
                         legendgroup='group3'
                     ), row=1, col=idx+1
                 )
@@ -122,6 +123,8 @@ class PlottingFunctions():
                             ),
                             marker={'color': '#FFA15A'},
                             customdata=week_df['run_name'],
+                            # Add safe text formatting if urgents_time should be displayed
+                            text=week_df['urgents_time'].apply(lambda x: round(x, 1) if pd.notna(x) else ''),
                             legendgroup='group4'
                         ), row=1, col=idx+1
                     )
@@ -134,6 +137,8 @@ class PlottingFunctions():
                             name='Last processing step to now - On hold',
                             marker={'color': '#FECB52'},
                             customdata=week_df['run_name'],
+                            # Add safe text formatting if on_hold_time should be displayed
+                            text=week_df['on_hold_time'].apply(lambda x: round(x, 1) if pd.notna(x) else ''),
                             legendgroup='group4'
                         ), row=1, col=idx+1
                     )
